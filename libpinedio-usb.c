@@ -486,7 +486,11 @@ int32_t
 pinedio_attach_interrupt(struct pinedio_inst *inst, enum pinedio_int_pin int_pin, enum pinedio_int_mode int_mode,
                          void (*callback)(void)) {
   int32_t res = 0;
+  // TODO: Add check if int_pin is correct
   pinedio_mutex_lock(&inst->usb_access_mutex);
+  if (inst->interrupts[int_pin].callback != NULL) {
+    inst->int_running_cnt--;
+  }
   inst->interrupts[int_pin].previous_state = 255;
   inst->interrupts[int_pin].mode = int_mode;
   inst->interrupts[int_pin].callback = callback;
@@ -498,7 +502,6 @@ pinedio_attach_interrupt(struct pinedio_inst *inst, enum pinedio_int_pin int_pin
       goto unlock;
     }
   }
-  inst->int_running_cnt++;
 
 unlock:
   pinedio_mutex_unlock(&inst->usb_access_mutex);
@@ -506,7 +509,13 @@ unlock:
 }
 
 int32_t pinedio_deattach_interrupt(struct pinedio_inst *inst, enum pinedio_int_pin int_pin) {
+  // TODO: Add check if int_pin is correct
   pinedio_mutex_lock(&inst->usb_access_mutex);
+  int32_t res;
+  if (inst->int_running_cnt == 0 || inst->interrupts[int_pin].callback == NULL) {
+    res = -1;
+    goto unlock;
+  }
   inst->interrupts[int_pin].callback = NULL;
   inst->int_running_cnt--;
   if (inst->int_running_cnt == 0) {
@@ -515,8 +524,9 @@ int32_t pinedio_deattach_interrupt(struct pinedio_inst *inst, enum pinedio_int_p
     pthread_join(inst->pin_poll_thread, NULL);
     return 0;
   }
+unlock:
   pinedio_mutex_unlock(&inst->usb_access_mutex);
-  return 0;
+  return res;
 }
 
 int32_t pinedio_set_option(struct pinedio_inst *inst, enum pinedio_option option, uint32_t value) {
