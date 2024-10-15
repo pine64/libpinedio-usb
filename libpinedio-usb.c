@@ -468,7 +468,9 @@ static void* pinedio_pin_poll_thread(void* arg) {
         enum pinedio_int_mode mode =
                 inst_int->previous_state == false && state == true ? PINEDIO_INT_MODE_RISING : PINEDIO_INT_MODE_FALLING;
         if (inst_int->mode & mode) {
+          pinedio_mutex_unlock(&inst->usb_access_mutex);
           inst_int->callback();
+          pinedio_mutex_lock(&inst->usb_access_mutex);
         }
       }
       inst_int->previous_state = state;
